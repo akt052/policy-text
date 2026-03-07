@@ -1,0 +1,6 @@
+torch
+gymnasium
+minigrid
+numpy
+tqdm
+matplotlib
