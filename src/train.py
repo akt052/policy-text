@@ -1,5 +1,6 @@
 import yaml
 import torch
+import random
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -9,7 +10,6 @@ from src.agents.a2c_agent import A2CAgent
 
 
 def load_config():
-
     with open("configs/config.yaml", "r") as f:
         return yaml.safe_load(f)
 
@@ -18,7 +18,9 @@ def train():
 
     config = load_config()
 
-    env = MiniGridEnvWrapper(config["env"]["name"])
+    env_names = config["env"]["names"]
+
+    envs = [MiniGridEnvWrapper(name) for name in env_names]
 
     state_dim = 5
     action_dim = 3
@@ -44,6 +46,9 @@ def train():
 
     for episode in tqdm(range(config["training"]["episodes"])):
 
+        # randomly choose env
+        env = random.choice(envs)
+
         state = env.reset()
 
         done = False
@@ -68,7 +73,6 @@ def train():
     plt.ylabel("Reward")
     plt.show()
 
-    # save model
     torch.save(model.state_dict(), "model.pth")
     print("Model saved to model.pth")
 
