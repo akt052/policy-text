@@ -1,0 +1,13 @@
+env:
+  name: BabyAI-GoToLocal-v0
+
+training:
+  episodes: 5000
+  gamma: 0.99
+  lr: 0.0003
+
+model:
+  hidden_dim: 128
+
+logging:
+  eval_interval: 200

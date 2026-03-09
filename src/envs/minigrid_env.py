@@ -1,55 +1,76 @@
-from __future__ import annotations
+import gymnasium as gym
+import minigrid
+import numpy as np
 
-from minigrid.core.constants import COLOR_NAMES
-from minigrid.core.grid import Grid
-from minigrid.core.mission import MissionSpace
-from minigrid.core.world_object import Door, Goal, Key, Wall
-from minigrid.manual_control import ManualControl
-from minigrid.minigrid_env import MiniGridEnv
+from src.utils.preprocess import parse_mission, encode_object
 
-class SimpleEnv(MiniGridEnv):
-    def __init__(
-            self, 
-            size=7,
-            agent_start_pos=(1, 1),
-            agent_start_dir=0,
-            max_steps: int | None = None,
-            **kwargs,
-    ):
-        self.agent_start_pos = agent_start_pos
-        self.agent_start_dir = agent_start_dir
 
-        mission_space = MissionSpace(mission_func=self._gen_mission)
+class MiniGridEnvWrapper:
 
-        super().__init__(
-            mission_space=mission_space,
-            grid_size=size,
-            max_steps=100,
-            **kwargs,
+    def __init__(self, env_name):
+
+        self.env = gym.make(env_name)
+
+    def reset(self):
+
+        obs, _ = self.env.reset()
+
+        return self._build_state(obs)
+
+    def step(self, action):
+
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        done = terminated or truncated
+
+        state = self._build_state(obs)
+
+        return state, reward, done, info
+
+    def _build_state(self, obs):
+
+        env = self.env.unwrapped
+
+        agent_x, agent_y = env.agent_pos
+        agent_dir = env.agent_dir
+
+        mission = obs["mission"]
+
+        color, obj = parse_mission(mission)
+
+        obj_id, color_id = encode_object(obj, color)
+
+        target_x, target_y = self._find_target(obj, color)
+
+        dx = target_x - agent_x
+        dy = target_y - agent_y
+
+        state = np.array(
+            [
+                dx,
+                dy,
+                agent_dir,
+                obj_id,
+                color_id
+            ],
+            dtype=np.float32
         )
 
-    @staticmethod
-    def _gen_mission():
-        return "grand mission"
+        return state
 
-    def _gen_grid(self, width, height):
-        self.grid = Grid(width, height)
-        self.grid.wall_rect(0, 0, width, height)
-        if self.agent_start_pos is not None:
-            self.agent_pos = self.agent_start_pos
-            self.agent_dir = self.agent_start_dir
-        else:
-            self.place_agent()
+    def _find_target(self, obj_type, color):
 
-        self.put_obj(Goal(), 5, 5)
-        self.mission = "grand mission"
+        grid = self.env.unwrapped.grid
 
+        for x in range(grid.width):
+            for y in range(grid.height):
 
-def main():
-    env = SimpleEnv(render_mode="human")
-    
-    manual_control = ManualControl(env, seed=42)
-    manual_control.start()
+                cell = grid.get(x, y)
 
-if __name__=="__main__":
-    main()
+                if cell is None:
+                    continue
+
+                if cell.type == obj_type and cell.color == color:
+                    return x, y
+
+        return 0, 0

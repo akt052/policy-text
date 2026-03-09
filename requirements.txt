@@ -4,3 +4,4 @@ minigrid
 numpy
 tqdm
 matplotlib
+pyyaml
